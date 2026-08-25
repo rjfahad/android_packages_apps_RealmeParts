@@ -38,11 +38,13 @@ import android.view.View;
 import android.view.WindowManager;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FPSInfoService extends Service {
-    private static final String MEASURED_FPS = "/sys/devices/platform/soc/ae00000.qcom,mdss_mdp/drm/card0/sde-crtc-0/measured_fps";
-    private final String TAG = "FPSInfoService";
+    private static final String TAG = "FPSInfoService";
+    private static final String DUMPSYS = "/system/bin/dumpsys";
     private View mView;
     private Thread mCurFPSThread;
     private String mFps = null;
@@ -68,20 +70,104 @@ public class FPSInfoService extends Service {
         }
     };
 
-    private static String readOneLine(String fname) {
-        BufferedReader br;
-        String line = null;
+    private static List<String> execCommand(String... args) {
+        List<String> out = new ArrayList<>();
+        BufferedReader br = null;
         try {
-            br = new BufferedReader(new FileReader(fname), 512);
-            try {
-                line = br.readLine();
-            } finally {
-                br.close();
+            Process p = new ProcessBuilder(args).redirectErrorStream(true).start();
+            br = new BufferedReader(new InputStreamReader(p.getInputStream()), 2048);
+            String line;
+            while ((line = br.readLine()) != null) {
+                out.add(line);
             }
+            br.close();
+            p.waitFor();
         } catch (Exception e) {
-            return null;
+        } finally {
+            if (br != null) {
+                try {
+                    br.close();
+                } catch (Exception ignored) {
+                }
+            }
         }
-        return line;
+        return out;
+    }
+
+    /**
+     * Pick the most relevant updating layer: an activity/window layer
+     * (contains a '/') that is not an internal overlay, preferring the
+     * topmost SurfaceView or activity entry.
+     */
+    private static String findTargetLayer(List<String> layers) {
+        String candidate = null;
+        for (String line : layers) {
+            String name = line.trim();
+            if (!name.contains("/")) continue;
+            if (name.startsWith("RequestedLayerState")
+                    || name.contains("Gesture Monitor")
+                    || name.startsWith("WindowToken")
+                    || name.contains("ScreenDecor")
+                    || name.contains("animation-leash")
+                    || name.contains("ActivityRecordInputSink")) continue;
+            candidate = name;
+        }
+        return candidate;
+    }
+
+    /**
+     * Compute instantaneous FPS from SurfaceFlinger frame-present timestamps.
+     */
+    private static double queryFps() {
+        String layer = findTargetLayer(execCommand(DUMPSYS, "SurfaceFlinger", "--list"));
+        if (layer == null) {
+            return -1;
+        }
+
+        List<String> latency = execCommand(DUMPSYS, "SurfaceFlinger", "--latency", layer);
+        if (latency.size() < 3) {
+            return -1;
+        }
+
+        long refreshNs = -1;
+        try {
+            refreshNs = Long.parseLong(latency.get(0).trim());
+        } catch (NumberFormatException ignored) {
+        }
+
+        // Column 2 (third value) is the actual present timestamp.
+        long first = -1, last = -1;
+        int count = 0;
+        for (int i = latency.size() - 1; i >= 1 && count < 64; i--) {
+            String[] parts = latency.get(i).trim().split("\\s+");
+            if (parts.length < 3) continue;
+            long ts;
+            try {
+                ts = Long.parseLong(parts[2]);
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            if (ts == Long.MAX_VALUE || ts <= 0) continue;
+            if (last < 0) {
+                last = ts;
+            }
+            first = ts;
+            count++;
+        }
+
+        if (first <= 0 || last <= 0 || count < 2 || last <= first) {
+            return -1;
+        }
+
+        double fps = (count - 1) * 1e9 / (double) (last - first);
+        if (refreshNs > 0) {
+            double maxFps = 1e9 / (double) refreshNs;
+            // Ignore stale windows that stopped submitting frames.
+            if (fps > maxFps * 1.05) {
+                return -1;
+            }
+        }
+        return fps;
     }
 
     @Override
@@ -202,7 +288,7 @@ public class FPSInfoService extends Service {
             float descent = mOnlinePaint.descent();
             mFH = (int) (descent - mAscent + .5f);
 
-            final String maxWidthStr = "fps: 60.1";
+            final String maxWidthStr = "fps: 120.1";
             mMaxWidth = (int) mOnlinePaint.measureText(maxWidthStr);
 
             updateDisplay();
@@ -289,8 +375,10 @@ public class FPSInfoService extends Service {
             try {
                 while (!mInterrupt) {
                     sleep(1000);
-                    StringBuffer sb = new StringBuffer();
-                    String fpsVal = FPSInfoService.readOneLine(MEASURED_FPS);
+                    double fps = queryFps();
+                    String fpsVal = (fps > 0)
+                            ? String.format("%.0f", fps)
+                            : null;
                     mHandler.sendMessage(mHandler.obtainMessage(1, fpsVal));
                 }
             } catch (InterruptedException e) {
