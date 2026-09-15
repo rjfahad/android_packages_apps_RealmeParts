@@ -12,4 +12,5 @@
 -->
 <resources>
     <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.Settings" />
+    <style name="Theme.SubSettingsBase" parent="@android:style/Theme.DeviceDefault.Settings" />
 </resources>

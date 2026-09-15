@@ -70,4 +70,27 @@
 
     <!-- Unsupported -->
     <string name="unsupported">Unsupported</string>
+
+    <!-- Ambient display (formerly from org.lineageos.settings.resources) -->
+    <string name="ambient_display_gestures_title">Ambient display</string>
+    <string name="ambient_display_title">Ambient display</string>
+    <string name="ambient_display_enable_summary">On this display, you can view notifications, the time, and more without waking your phone.</string>
+    <string name="ambient_display_gestures_summary">Lift your phone to view notifications and time, or use gestures to dismiss them.</string>
+    <string name="ambient_display_always_on_title">Always on</string>
+    <string name="ambient_display_always_on_summary">Keep the ambient display on always</string>
+    <string name="wake_on_gesture_title">Wake on lift</string>
+    <string name="wake_on_gesture_summary">Raise your phone to wake the ambient display</string>
+    <string name="tilt_sensor_title">Tilt sensor</string>
+    <string name="pick_up_gesture_title">Pick up</string>
+    <string name="pick_up_gesture_summary">Pick up your phone to view the ambient display</string>
+    <string name="proximity_sensor_title">Proximity sensor</string>
+    <string name="hand_wave_gesture_title">Hand wave</string>
+    <string name="hand_wave_gesture_summary">Wave your hand over the proximity sensor to activate ambient display</string>
+    <string name="pocket_gesture_title">Pocket mode</string>
+    <string name="pocket_gesture_summary">Block ambient display when your phone is in your pocket</string>
+
+    <!-- Help dialog (formerly from org.lineageos.settings.resources) -->
+    <string name="dialog_ok">OK</string>
+    <string name="doze_settings_help_title">Ambient display help</string>
+    <string name="doze_settings_help_text">Ambient display lets you see notifications and other info on your screen without fully waking your device.</string>
 </resources>

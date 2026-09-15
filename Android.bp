@@ -6,15 +6,14 @@
 
 android_app {
     name: "RealmeParts",
+    defaults: ["SettingsLibDefaults"],
+
     srcs: ["src/**/*.java"],
     resource_dirs: ["res"],
+
     certificate: "platform",
     platform_apis: true,
     privileged: true,
-
-    static_libs: [
-        "org.lineageos.settings.resources",
-    ],
 
     optimize: {
         proguard_flags_files: ["proguard.flags"],
